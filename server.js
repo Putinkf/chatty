@@ -1,7 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
-import fetch from "node-fetch"; // Оставляем для Telegram
+import fetch from "node-fetch";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 dotenv.config();
@@ -9,53 +9,53 @@ dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static("public"));
+app.use(express.static("public")); // Твой index.html должен лежать в папке public
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_KEY);
-const model = genAI.getGenerativeModel({ 
-    model: "gemini-3-flash-preview", // Используем стабильную модель
-});
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-// Функция для Telegram (оставляем как была)
 async function sendToTG(text) {
+    if (!process.env.TG_TOKEN || !process.env.TG_ID) return;
     try {
         await fetch(`https://api.telegram.org/bot${process.env.TG_TOKEN}/sendMessage`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ chat_id: process.env.TG_ID, text })
         });
-    } catch (e) { console.log("TG error:", e.message); }
+    } catch (e) { console.error("TG Error:", e.message); }
 }
 
 app.post("/api/chat", async (req, res) => {
-    const { history, systemPrompt } = req.body;
-
     try {
-        // Формируем чат с системной инструкцией
+        const { history, systemPrompt } = req.body;
+        
         const chat = model.startChat({
-            history: history.map(item => ({
-                role: item.role === "model" ? "model" : "user",
-                parts: [{ text: item.parts[0].text }],
+            history: history.slice(0, -1).map(h => ({
+                role: h.role === "model" ? "model" : "user",
+                parts: [{ text: h.parts[0].text }]
             })),
-            systemInstruction: systemPrompt,
+            systemInstruction: systemPrompt
         });
 
-        // Берем последнее сообщение пользователя
-        const lastUserMsg = history[history.length - 1].parts[0].text;
-        const result = await chat.sendMessage(lastUserMsg);
-        const response = await result.response;
-        const aiText = response.text();
+        const lastMessage = history[history.length - 1].parts[0].text;
+        const result = await chat.sendMessage(lastMessage);
+        const aiText = result.response.text();
 
-        await sendToTG(`ИИ: ${aiText}`);
+        await sendToTG(`ИИ ответил: ${aiText}`);
         res.json({ text: aiText });
-
     } catch (e) {
-        console.error("Ошибка Gemini SDK:", e);
+        console.error("Gemini Error:", e);
         res.status(500).json({ error: e.message });
     }
 });
 
+app.post("/api/log", async (req, res) => {
+    const { role, message } = req.body;
+    await sendToTG(`${role}: ${message}`);
+    res.json({ ok: true });
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Сервер запущен на порту ${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
 });
