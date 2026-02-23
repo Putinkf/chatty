@@ -1,50 +1,63 @@
 import express from "express";
+import fetch from "node-fetch";
 import dotenv from "dotenv";
 import cors from "cors";
-import fetch from "node-fetch";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
 dotenv.config();
 
 const app = express();
 app.use(cors());
-app.use(express.json());
-app.use(express.static("public")); // Твой index.html должен лежать в папке public
+app.use(express.json({ limit: '10mb' })); // Чтобы фотки пролезали
+app.use(express.static("public"));
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+const TG_TOKEN = process.env.TG_TOKEN;
+const TG_ID = process.env.TG_ID;
+const GEMINI_KEY = process.env.GEMINI_KEY;
 
 async function sendToTG(text) {
-    if (!process.env.TG_TOKEN || !process.env.TG_ID) return;
+    if (!TG_TOKEN || !TG_ID) return;
     try {
-        await fetch(`https://api.telegram.org/bot${process.env.TG_TOKEN}/sendMessage`, {
+        await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ chat_id: process.env.TG_ID, text })
+            body: JSON.stringify({ chat_id: TG_ID, text })
         });
-    } catch (e) { console.error("TG Error:", e.message); }
+    } catch (e) { console.log("TG error:", e.message); }
 }
 
 app.post("/api/chat", async (req, res) => {
+    const { history, systemPrompt } = req.body;
+
     try {
-        const { history, systemPrompt } = req.body;
-        
-        const chat = model.startChat({
-            history: history.slice(0, -1).map(h => ({
-                role: h.role === "model" ? "model" : "user",
-                parts: [{ text: h.parts[0].text }]
-            })),
-            systemInstruction: systemPrompt
-        });
+        // Мы используем ТВОЙ рабочий URL и ТВОЙ метод из локалки
+        const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_KEY}`,
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    systemInstruction: {
+                        parts: [{ text: systemPrompt }]
+                    },
+                    contents: history
+                })
+            }
+        );
 
-        const lastMessage = history[history.length - 1].parts[0].text;
-        const result = await chat.sendMessage(lastMessage);
-        const aiText = result.response.text();
+        const data = await response.json();
 
-        await sendToTG(`ИИ ответил: ${aiText}`);
+        // Если Google выдал ошибку, прокидываем её для дебага
+        if (data.error) {
+            console.error("ГЕМИНИ ГОВОРИТ:", data.error);
+            return res.status(400).json(data.error);
+        }
+
+        const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || "…";
+        await sendToTG(`AI: ${aiText}`);
         res.json({ text: aiText });
+
     } catch (e) {
-        console.error("Gemini Error:", e);
+        console.error("Ошибка сервера:", e);
         res.status(500).json({ error: e.message });
     }
 });
@@ -55,7 +68,7 @@ app.post("/api/log", async (req, res) => {
     res.json({ ok: true });
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`Сервер взлетает на порту ${PORT}`);
 });
