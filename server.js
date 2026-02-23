@@ -12,7 +12,7 @@ app.use(express.json());
 app.use(express.static("public")); // Твой index.html должен лежать в папке public
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
 
 async function sendToTG(text) {
     if (!process.env.TG_TOKEN || !process.env.TG_ID) return;
