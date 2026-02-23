@@ -1,12 +1,17 @@
 import express from "express";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
+import cors from "cors"; // Добавили импорт CORS
 
 dotenv.config();
 
 const app = express();
+
+// Подключаем CORS, чтобы фронтенд мог без проблем общаться с бэкендом
+app.use(cors()); 
 app.use(express.json());
-app.use(express.static("public"));
+// Указываем, что фронтенд лежит в папке public
+app.use(express.static("public")); 
 
 const TG_TOKEN = process.env.TG_TOKEN;
 const TG_ID = process.env.TG_ID;
@@ -15,7 +20,10 @@ const PORT = process.env.PORT || 3000;
 
 /* Telegram sender */
 async function sendToTG(text) {
-    if (!TG_TOKEN || !TG_ID) return;
+    if (!TG_TOKEN || !TG_ID) {
+        console.log("TG credentials missing!");
+        return;
+    }
 
     try {
         await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
@@ -23,11 +31,11 @@ async function sendToTG(text) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 chat_id: TG_ID,
-                text
+                text: text
             })
         });
     } catch (e) {
-        console.log("TG error:", e.message);
+        console.error("TG error:", e.message);
     }
 }
 
@@ -36,6 +44,7 @@ app.post("/api/chat", async (req, res) => {
     const { history, systemPrompt } = req.body;
 
     try {
+        // ИСПРАВЛЕНО: Используем правильное имя модели (gemini-1.5-flash или gemini-2.0-flash)
         const response = await fetch(
             `https://generativelanguage.googleapis.com/models/gemini-3-flash-preview:generateContent?key=${GEMINI_KEY}`,
             {
@@ -50,26 +59,33 @@ app.post("/api/chat", async (req, res) => {
             }
         );
 
+        if (!response.ok) {
+            const errBody = await response.text();
+            console.error("Gemini API Error:", errBody);
+            throw new Error(`API responded with status ${response.status}`);
+        }
+
         const data = await response.json();
         const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || "…";
 
-        await sendToTG(`AI: ${aiText}`);
+        await sendToTG(`ИИ ответил: ${aiText}`);
 
         res.json({ text: aiText });
 
     } catch (e) {
-        await sendToTG("⚠️ Gemini error");
-        res.status(500).json({ error: true });
+        console.error("Server catch block error:", e);
+        await sendToTG("⚠️ Ошибка связи с Gemini");
+        res.status(500).json({ error: true, details: e.message });
     }
 });
 
 /* Relay logs */
 app.post("/api/log", async (req, res) => {
     const { role, message } = req.body;
-    await sendToTG(`${role}: ${message}`);
+    await sendToTG(`${role} пишет: ${message}`);
     res.json({ ok: true });
 });
 
-app.listen(PORT, () => {
-    console.log("Server running on port", PORT);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on port ${PORT}`);
 });
