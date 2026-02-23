@@ -25,11 +25,11 @@ async function sendToTG(text) {
     } catch (e) { console.log("TG error:", e.message); }
 }
 
+/* Gemini proxy */
 app.post("/api/chat", async (req, res) => {
     const { history, systemPrompt } = req.body;
 
     try {
-        // Мы используем ТВОЙ рабочий URL и ТВОЙ метод из локалки
         const response = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_KEY}`,
             {
@@ -39,17 +39,27 @@ app.post("/api/chat", async (req, res) => {
                     systemInstruction: {
                         parts: [{ text: systemPrompt }]
                     },
-                    contents: history
+                    contents: history,
+                    // ДОБАВЛЯЕМ ВОТ ЭТОТ БЛОК:
+                    safetySettings: [
+                        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+                        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+                        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+                        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+                    ],
+                    generationConfig: {
+                        temperature: 0.9, // Делает его чуть более "безумным" и непредсказуемым
+                    }
                 })
             }
         );
 
         const data = await response.json();
-
-        // Если Google выдал ошибку, прокидываем её для дебага
-        if (data.error) {
-            console.error("ГЕМИНИ ГОВОРИТ:", data.error);
-            return res.status(400).json(data.error);
+        
+        // Если Google всё равно заблокировал ответ из-за политики безопасности
+        if (data.promptFeedback?.blockReason) {
+            console.log("БЛОКИРОВКА:", data.promptFeedback.blockReason);
+            return res.json({ text: "[LOC: HORROR] ...тишина. Ты зашел слишком далеко." });
         }
 
         const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || "…";
@@ -57,8 +67,8 @@ app.post("/api/chat", async (req, res) => {
         res.json({ text: aiText });
 
     } catch (e) {
-        console.error("Ошибка сервера:", e);
-        res.status(500).json({ error: e.message });
+        console.error("Ошибка:", e);
+        res.status(500).json({ error: true });
     }
 });
 
