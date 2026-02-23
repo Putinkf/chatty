@@ -13,7 +13,7 @@ app.use(express.static("public"));
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_KEY);
 const model = genAI.getGenerativeModel({ 
-    model: "gemini-1.5-flash", // Используем стабильную модель
+    model: "gemini-3-flash-preview", // Используем стабильную модель
 });
 
 // Функция для Telegram (оставляем как была)
