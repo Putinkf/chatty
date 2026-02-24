@@ -40,4 +40,4 @@ footer { background: rgba(23,33,43,0.9); padding: 8px 10px calc(8px + var(--safe
 .input-container { flex: 1; background: #0f1621; border-radius: 20px; padding: 8px 14px; }
 input { width: 100%; background: transparent; border: none; color: white; outline: none; font-size: 16px; }
 .send-btn { width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--tg-sent); color: white; font-size: 14px;}
-.send-btn:disabled, .attach-btn:disabled { opacity:
+.send-btn:disabled, .attach-btn:disabled { opacity: 0.3; }
