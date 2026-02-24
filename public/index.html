@@ -8,16 +8,22 @@
 </head>
 <body>
     <div id="viewport"></div>
+    <div id="jumpscare"></div> <audio id="snd-glitch" src="https://actions.google.com/sounds/v1/science_fiction/glitch.ogg"></audio>
+    <audio id="snd-scream" src="https://actions.google.com/sounds/v1/horror/female_scream.ogg"></audio>
+
     <div id="app">
         <header>
-            <div class="avatar">👁️</div>
+            <div class="avatar" id="chat-avatar">👁️</div>
             <div>
-                <div>Наблюдатель</div>
+                <div id="chat-name">Наблюдатель</div>
                 <div class="status" id="chat-status">в сети</div>
             </div>
         </header>
         <div id="chat-window"></div>
         <footer>
+            <input type="file" id="file-input" accept="image/*" style="display:none;">
+            <button class="attach-btn" id="attach-btn">📎</button>
+            
             <div class="input-container">
                 <input id="user-input" placeholder="Сообщение" autocomplete="off">
             </div>
