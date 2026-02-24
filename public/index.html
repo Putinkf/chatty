@@ -1,254 +1,29 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#17212b">
-<title>Telegram</title>
-
-<style>
-:root {
-    --tg-sent: #2481cc;
-    --tg-received: #1c242f;
-    --safe-top: env(safe-area-inset-top);
-    --safe-bottom: env(safe-area-inset-bottom);
-}
-
-html, body {
-    margin: 0;
-    height: 100%;
-    background: black;
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
-    color: white;
-    overflow: hidden;
-}
-
-#app {
-    height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    position: relative;
-    z-index: 10;
-}
-
-#viewport {
-    position: fixed;
-    inset: 0;
-    background-size: cover;
-    background-position: center;
-    transition: 1.2s ease;
-}
-
-.vignette {
-    box-shadow: inset 0 0 220px 120px rgba(0,0,0,0.95);
-    filter: brightness(0.5);
-}
-
-.horror-glitch {
-    animation: shake 0.12s infinite;
-}
-
-@keyframes shake {
-    0% { transform: translate(1px, 0); }
-    50% { transform: translate(-1px, 1px); }
-    100% { transform: translate(1px, 0); }
-}
-
-header {
-    padding: calc(var(--safe-top) + 6px) 14px 10px;
-    background: rgba(23,33,43,0.75);
-    backdrop-filter: blur(35px);
-    display: flex;
-    align-items: center;
-}
-
-.avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #52a2e8, #2481cc);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 12px;
-}
-
-.status {
-    font-size: 13px;
-    color: #4ea4f5;
-}
-
-#chat-window {
-    flex: 1;
-    overflow-y: auto;
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.msg {
-    max-width: 78%;
-    padding: 8px 14px;
-    border-radius: 18px;
-    font-size: 16px;
-}
-
-.msg-in { align-self: flex-start; background: var(--tg-received); }
-.msg-out { align-self: flex-end; background: var(--tg-sent); }
-
-footer {
-    background: rgba(23,33,43,0.85);
-    padding: 8px 10px calc(8px + var(--safe-bottom));
-    display: flex;
-    gap: 8px;
-}
-
-.input-container {
-    flex: 1;
-    background: #0f1621;
-    border-radius: 18px;
-    padding: 6px 10px;
-}
-
-input {
-    width: 100%;
-    background: transparent;
-    border: none;
-    color: white;
-    outline: none;
-    font-size: 16px;
-}
-
-.send-btn {
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    border: none;
-    background: var(--tg-sent);
-    color: white;
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Telegram</title>
+    <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-<div id="viewport"></div>
-
-<div id="app">
-<header>
-    <div class="avatar">👁️</div>
-    <div>
-        <div>Наблюдатель</div>
-        <div class="status" id="chat-status">в сети</div>
+    <div id="viewport"></div>
+    <div id="app">
+        <header>
+            <div class="avatar">👁️</div>
+            <div>
+                <div>Наблюдатель</div>
+                <div class="status" id="chat-status">в сети</div>
+            </div>
+        </header>
+        <div id="chat-window"></div>
+        <footer>
+            <div class="input-container">
+                <input id="user-input" placeholder="Сообщение" autocomplete="off">
+            </div>
+            <button class="send-btn" id="send-btn">▲</button>
+        </footer>
     </div>
-</header>
-
-<div id="chat-window"></div>
-
-<footer>
-    <div class="input-container">
-        <input id="user-input" placeholder="Сообщение">
-    </div>
-    <button class="send-btn" id="send-btn">▲</button>
-</footer>
-</div>
-
-<script>
-const viewport = document.getElementById("viewport");
-const chatWindow = document.getElementById("chat-window");
-const input = document.getElementById("user-input");
-const statusLabel = document.getElementById("chat-status");
-
-let history = [];
-let sessionStart = Date.now();
-
-function getPhase() {
-    const minutes = (Date.now() - sessionStart) / 60000;
-    if (minutes < 5) return "NORMAL";
-    if (minutes < 18) return "ANXIOUS";
-    return "HORROR";
-}
-
-const SYSTEM_PROMPT_BASE = `
-
-`;
-
-function updateUI(loc) {
-    viewport.className = "";
-    if(loc === "NORMAL")
-        viewport.style.backgroundImage = "url('https://i.pinimg.com/736x/91/da/1d/91da1d736657fa11b9b529a0a6ac84b7.jpg')";
-    if(loc === "ANXIOUS") {
-        viewport.style.backgroundImage = "url('https://i.imgur.com/LgYGoln.jpeg')";
-        viewport.classList.add("vignette");
-    }
-    if(loc === "HORROR") {
-        viewport.style.backgroundImage = "url('https://i.pinimg.com/736x/91/b4/90/91b4905cb4f5be4895c61de9f26808c5.jpg')";
-        viewport.classList.add("horror-glitch");
-    }
-}
-
-function addMsg(text, type) {
-    const div = document.createElement("div");
-    div.className = `msg ${type}`;
-    div.innerText = text;
-    chatWindow.appendChild(div);
-    chatWindow.scrollTop = chatWindow.scrollHeight;
-}
-
-function log(role, message) {
-    fetch("/api/log", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role, message })
-    });
-}
-
-async function callAI(text) {
-    statusLabel.innerText = "печатает...";
-
-    const PHASE = getPhase();
-    const systemPrompt = SYSTEM_PROMPT_BASE.replace("{{PHASE}}", PHASE);
-
-    history.push({ role: "user", parts: [{ text }] });
-    log("USER", text);
-
-    try {
-        const res = await fetch("/api/chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ history, systemPrompt })
-        });
-
-        const data = await res.json();
-        const aiRaw = data.text;
-
-        history.push({ role: "model", parts: [{ text: aiRaw }] });
-
-        const locMatch = aiRaw.match(/\[LOC:\s*(NORMAL|ANXIOUS|HORROR)\]/);
-        if(locMatch) updateUI(locMatch[1]);
-
-        const clean = aiRaw.replace(/\[LOC:.*?\]/, "").trim();
-
-        setTimeout(() => {
-            addMsg(clean, "msg-in");
-            log("AI", clean);
-            statusLabel.innerText = "в сети";
-        }, Math.min(3000, clean.length * 35));
-
-    } catch {
-        statusLabel.innerText = "ошибка";
-    }
-}
-
-document.getElementById("send-btn").onclick = () => {
-    const val = input.value.trim();
-    if(!val) return;
-    addMsg(val, "msg-out");
-    input.value = "";
-    callAI(val);
-};
-
-updateUI("NORMAL");
-</script>
+    <script src="script.js"></script>
 </body>
 </html>
