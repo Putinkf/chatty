@@ -41,3 +41,29 @@ footer { background: rgba(23,33,43,0.9); padding: 8px 10px calc(8px + var(--safe
 input { width: 100%; background: transparent; border: none; color: white; outline: none; font-size: 16px; }
 .send-btn { width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--tg-sent); color: white; font-size: 14px;}
 .send-btn:disabled, .attach-btn:disabled { opacity: 0.3; }
+.msg-wrapper {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 8px;
+    max-width: 85%;
+}
+
+.msg-wrapper.left { align-items: flex-start; }
+.msg-wrapper.right { align-self: flex-end; align-items: flex-end; }
+
+.sender-name {
+    font-size: 12px;
+    font-weight: bold;
+    margin-bottom: 2px;
+    margin-left: 10px;
+    color: #4ea4f5; /* Цвет как у имен в ТГ */
+}
+
+/* Разные цвета для разных персонажей (опционально через JS) */
+.sender-name:contains('Дима') { color: #52d373; }
+.sender-name:contains('Наблюдатель') { color: #ff5252; }
+
+.msg {
+    position: relative;
+    z-index: 2;
+}
