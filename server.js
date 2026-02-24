@@ -34,26 +34,40 @@ app.post("/api/chat", async (req, res) => {
     const finalPrompt = `${SYSTEM_PROMPT_RAW}\n\n[ТЕКУЩАЯ ИНФОРМАЦИЯ ОТ СИСТЕМЫ]\nТекущая фаза: ${phase}\nПользователь на сайте: ${minutesElapsed} минут.`;
 
     try {
-        const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`,
+const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
             {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    systemInstruction: { parts: [{ text: finalPrompt }] },
+                    systemInstruction: { 
+                        parts: [{ text: finalPrompt }] 
+                    },
                     contents: history,
                     safetySettings: [
                         { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
                         { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
                         { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
                         { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
-                    ]
+                    ],
+                    generationConfig: {
+                        temperature: 1.0,
+                        maxOutputTokens: 150 // Ограничим длину, чтобы он не писал поэмы
+                    }
                 })
             }
         );
 
         const data = await response.json();
-        const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || "[FEAR: 10] [LOC: HORROR] Твой разум оборвался.";
+        
+        // Если пришла ошибка или блок
+        if (data.promptFeedback?.blockReason || !data.candidates) {
+            console.log("Gemini Blocked/Error:", data);
+            // Вместо одной фразы даем ИИ шанс "выкрутиться" через системную ошибку
+            return res.json({ text: "[CHAR: SYSTEM] [FEAR: 5] ОШИБКА КАНАЛА СВЯЗИ... ПОМЕХИ..." });
+        }
+
+        const aiText = data.candidates[0].content.parts[0].text;
         
         // Логируем в ТГ (очистив от тегов для читаемости)
         const cleanForTG = aiText.replace(/\[.*?\]/g, "").trim();
