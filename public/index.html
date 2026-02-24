@@ -7,15 +7,21 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <div id="start-overlay">
+        <button id="start-btn">ВОЙТИ В ЧАТ</button>
+    </div>
+
     <div id="viewport"></div>
-    <div id="jumpscare"></div> <audio id="snd-glitch" src="https://actions.google.com/sounds/v1/science_fiction/glitch.ogg"></audio>
-    <audio id="snd-scream" src="https://actions.google.com/sounds/v1/horror/female_scream.ogg"></audio>
+    <div id="jumpscare"></div>
+    
+    <audio id="snd-glitch" src="/sounds/sound2.mp3" preload="auto"></audio>
+    <audio id="snd-scream" src="/sounds/sound.mp3" preload="auto"></audio>
 
     <div id="app">
         <header>
             <div class="avatar" id="chat-avatar">👁️</div>
             <div>
-                <div id="chat-name">Наблюдатель</div>
+                <div id="chat-name">Личка с Димой</div>
                 <div class="status" id="chat-status">в сети</div>
             </div>
         </header>
@@ -23,7 +29,6 @@
         <footer>
             <input type="file" id="file-input" accept="image/*" style="display:none;">
             <button class="attach-btn" id="attach-btn">📎</button>
-            
             <div class="input-container">
                 <input id="user-input" placeholder="Сообщение" autocomplete="off">
             </div>
