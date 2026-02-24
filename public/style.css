@@ -1,69 +1,35 @@
-:root {
-    --tg-sent: #2481cc; --tg-received: #1c242f;
-    --safe-top: env(safe-area-inset-top); --safe-bottom: env(safe-area-inset-bottom);
-}
+:root { --tg-sent: #2b5278; --tg-received: #182533; }
+body, html { margin: 0; height: 100%; background: #0e1621; font-family: sans-serif; overflow: hidden; color: white; }
 
-html, body { margin: 0; height: 100%; background: black; font-family: sans-serif; color: white; overflow: hidden; }
+#start-overlay { position: fixed; inset: 0; z-index: 10000; background: black; display: flex; align-items: center; justify-content: center; }
+#start-btn { padding: 15px 30px; background: #2481cc; color: white; border: none; border-radius: 10px; font-size: 18px; cursor: pointer; }
+
+#viewport { position: fixed; inset: 0; background-size: cover; background-position: center; z-index: 1; transition: 3s; }
+.vignette { box-shadow: inset 0 0 200px 100px black; filter: brightness(0.5); }
+.horror-glitch { animation: shake 0.1s infinite; filter: grayscale(1) contrast(2); }
+
+@keyframes shake { 0% {transform: translate(1px,1px)} 50% {transform: translate(-1px,-2px)} 100% {transform: translate(1px,1px)} }
+
+#jumpscare { position: fixed; inset: 0; z-index: 9999; background: url('https://i.imgur.com/8YlU9V2.jpeg') center/cover; opacity: 0; pointer-events: none; }
+.jump-active { opacity: 1 !important; }
 
 #app { height: 100dvh; display: flex; flex-direction: column; position: relative; z-index: 10; }
+header { padding: 10px 15px; background: #17212b; display: flex; align-items: center; border-bottom: 1px solid #000; }
+.avatar { width: 40px; height: 40px; border-radius: 50%; background: #2481cc; margin-right: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
 
-#viewport { position: fixed; inset: 0; background-size: cover; background-position: center; transition: 2s ease; z-index: 1; }
-.vignette { box-shadow: inset 0 0 250px 150px rgba(0,0,0,0.95); filter: brightness(0.5) contrast(1.2); }
-.horror-glitch { animation: shake 0.1s infinite; filter: invert(0.1) contrast(1.5) grayscale(0.8); }
+#chat-window { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+.msg-wrapper { display: flex; flex-direction: column; max-width: 80%; }
+.left { align-self: flex-start; }
+.right { align-self: flex-end; align-items: flex-end; }
 
-@keyframes shake {
-    0% { transform: translate(2px, 1px); }
-    50% { transform: translate(-2px, -1px); }
-    100% { transform: translate(1px, 2px); }
-}
+.sender-name { font-size: 13px; font-weight: bold; margin-bottom: 2px; color: #64b5f6; }
+.msg { padding: 8px 15px; border-radius: 15px; line-height: 1.4; word-wrap: break-word; }
+.msg-in { background: var(--tg-received); }
+.msg-out { background: var(--tg-sent); }
+.msg-img { width: 100%; border-radius: 10px; margin-top: 5px; }
 
-/* СКРИМЕР */
-#jumpscare {
-    position: fixed; inset: 0; z-index: 9999;
-    background: url('https://i.pinimg.com/736x/88/50/45/885045610bc93532ab19010bc1170b02.jpg') center/cover;
-    opacity: 0; pointer-events: none; transition: opacity 0.1s;
-}
-.jump-active { opacity: 1 !important; animation: shake 0.05s infinite; }
-
-header { padding: calc(var(--safe-top) + 8px) 14px 10px; background: rgba(23,33,43,0.8); backdrop-filter: blur(15px); display: flex; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); }
-.avatar { width: 40px; height: 40px; border-radius: 50%; background: #2481cc; display: flex; align-items: center; justify-content: center; margin-right: 12px; font-size: 20px; transition: 0.5s; }
-.status { font-size: 13px; color: #4ea4f5; }
-
-#chat-window { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 6px; scroll-behavior: smooth; }
-.msg { max-width: 80%; padding: 10px 14px; border-radius: 18px; font-size: 16px; line-height: 1.4; word-wrap: break-word; }
-.msg-in { align-self: flex-start; background: var(--tg-received); }
-.msg-out { align-self: flex-end; background: var(--tg-sent); }
-.msg-img { max-width: 200px; border-radius: 12px; margin-top: 5px; }
-
-footer { background: rgba(23,33,43,0.9); padding: 8px 10px calc(8px + var(--safe-bottom)); display: flex; gap: 8px; align-items: center;}
-.attach-btn { background: none; border: none; font-size: 24px; color: #8593a1; cursor: pointer; padding: 0 5px; }
-.input-container { flex: 1; background: #0f1621; border-radius: 20px; padding: 8px 14px; }
-input { width: 100%; background: transparent; border: none; color: white; outline: none; font-size: 16px; }
-.send-btn { width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--tg-sent); color: white; font-size: 14px;}
-.send-btn:disabled, .attach-btn:disabled { opacity: 0.3; }
-.msg-wrapper {
-    display: flex;
-    flex-direction: column;
-    margin-bottom: 8px;
-    max-width: 85%;
-}
-
-.msg-wrapper.left { align-items: flex-start; }
-.msg-wrapper.right { align-self: flex-end; align-items: flex-end; }
-
-.sender-name {
-    font-size: 12px;
-    font-weight: bold;
-    margin-bottom: 2px;
-    margin-left: 10px;
-    color: #4ea4f5; /* Цвет как у имен в ТГ */
-}
-
-/* Разные цвета для разных персонажей (опционально через JS) */
-.sender-name:contains('Дима') { color: #52d373; }
-.sender-name:contains('Наблюдатель') { color: #ff5252; }
-
-.msg {
-    position: relative;
-    z-index: 2;
-}
+footer { padding: 10px; background: #17212b; display: flex; gap: 10px; align-items: center; }
+.input-container { flex: 1; background: #0e1621; border-radius: 20px; padding: 10px 15px; }
+input { width: 100%; background: none; border: none; color: white; outline: none; }
+.send-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: #2481cc; color: white; cursor: pointer; }
+.attach-btn { background: none; border: none; font-size: 20px; cursor: pointer; }
