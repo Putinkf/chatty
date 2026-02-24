@@ -50,69 +50,42 @@ function setCharacter(name) {
     chatAvatar.innerText = name.includes("Админ") ? "⚙️" : name.includes("Елена") ? "🩸" : "👁️";
 }
 
-function addMsg(text, type, imgUrl = null) {
+function addMsg(text, type, senderName = "Система", imgUrl = null) {
+    const messageWrapper = document.createElement("div");
+    messageWrapper.className = `msg-wrapper ${type === 'msg-in' ? 'left' : 'right'}`;
+
+    // Имя отправителя над сообщением (только для входящих)
+    if (type === 'msg-in') {
+        const nameLabel = document.createElement("div");
+        nameLabel.className = "sender-name";
+        nameLabel.innerText = senderName;
+        messageWrapper.appendChild(nameLabel);
+    }
+
     const div = document.createElement("div");
     div.className = `msg ${type}`;
     div.innerText = text;
+
     if (imgUrl) {
         const img = document.createElement("img");
         img.src = imgUrl; img.className = "msg-img";
         div.appendChild(img);
     }
-    chatWindow.appendChild(div);
+
+    messageWrapper.appendChild(div);
+    chatWindow.appendChild(messageWrapper);
     chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
-// Конвертация картинки в Base64 (и сжатие, чтобы не убить сервер)
-async function fileToBase64(file) {
-    return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target.result.split(",")[1]); // Берем только данные
-        reader.readAsDataURL(file);
-    });
-}
-
-attachBtn.onclick = () => fileInput.click();
-fileInput.onchange = async () => {
-    const file = fileInput.files[0];
-    if (!file) return;
-    
-    // Показываем фото в чате
-    const objUrl = URL.createObjectURL(file);
-    addMsg("Фото отправлено", "msg-out", objUrl);
-    
-    const base64Data = await fileToBase64(file);
-    const mime = file.type;
-    
-    // Формируем кусок для Gemini
-    const imagePart = { inlineData: { data: base64Data, mimeType: mime } };
-    history.push({ role: "user", parts: [{ text: "Я отправил фото комнаты." }, imagePart] });
-    
-    fileInput.value = ""; // сброс
-    sendToAPI();
-};
-
-async function sendMessage() {
-    const text = input.value.trim();
-    if (!text || isBusy) return;
-
-    input.value = "";
-    addMsg(text, "msg-out");
-    history.push({ role: "user", parts: [{ text }] });
-    fetch("/api/log", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({role: "USER", message: text})});
-    
-    sendToAPI();
-}
-
 async function sendToAPI() {
-    isBusy = true; sendBtn.disabled = true; attachBtn.disabled = true;
+    isBusy = true; sendBtn.disabled = true;
     statusLabel.innerText = "печатает...";
 
     try {
         const response = await fetch("/api/chat", {
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
-                history: history.slice(-12), 
+                history: history.slice(-15), 
                 phase: getPhase(),
                 minutesElapsed: getMinutes()
             })
@@ -122,34 +95,31 @@ async function sendToAPI() {
         const aiRaw = data.text;
         history.push({ role: "model", parts: [{ text: aiRaw }] });
 
-        // ПАРСИНГ ТЕГОВ
+        // ПАРСИНГ
         const charMatch = aiRaw.match(/\[CHAR:\s*(.*?)\]/i);
-        const locMatch = aiRaw.match(/\[LOC:\s*(NORMAL|ANXIOUS|HORROR)\]/i);
+        const locMatch = aiRaw.match(/\[LOC:\s*(.*?)\]/i);
         const fearMatch = aiRaw.match(/\[FEAR:\s*(\d+)\]/i);
+        const renameMatch = aiRaw.match(/\[COMMAND:\s*RENAME\s*(.*?)\]/i);
         const clearMatch = aiRaw.match(/\[COMMAND:\s*CLEAR\]/i);
 
         if (clearMatch) chatWindow.innerHTML = "";
+        if (renameMatch) chatName.innerText = renameMatch[1];
         if (locMatch) updateUI(locMatch[1].toUpperCase());
-        if (charMatch) setCharacter(charMatch[1]);
         
-        // ШКАЛА СТРАХА -> СКРИМЕР
-        if (fearMatch) {
-            const fearLevel = parseInt(fearMatch[1]);
-            if (fearLevel >= 9) triggerJumpscare();
-        }
+        const currentSender = charMatch ? charMatch[1] : "Неизвестный";
+        if (fearMatch && parseInt(fearMatch[1]) >= 9) triggerJumpscare();
 
-        // Чистим текст для пользователя (удаляем все в квадратных скобках)
         const cleanText = aiRaw.replace(/\[.*?\]/g, "").trim();
 
         setTimeout(() => {
-            if(cleanText) addMsg(cleanText, "msg-in");
+            if(cleanText) addMsg(cleanText, "msg-in", currentSender);
             statusLabel.innerText = "в сети";
-            isBusy = false; sendBtn.disabled = false; attachBtn.disabled = false;
-        }, Math.min(2000, cleanText.length * 30));
+            isBusy = false; sendBtn.disabled = false;
+        }, 1500);
 
     } catch (e) {
-        statusLabel.innerText = "связь потеряна...";
-        isBusy = false; sendBtn.disabled = false; attachBtn.disabled = false;
+        statusLabel.innerText = "ошибка";
+        isBusy = false; sendBtn.disabled = false;
     }
 }
 
