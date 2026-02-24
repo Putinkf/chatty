@@ -6,7 +6,6 @@ const sendBtn = document.getElementById("send-btn");
 const attachBtn = document.getElementById("attach-btn");
 const fileInput = document.getElementById("file-input");
 const chatName = document.getElementById("chat-name");
-const chatAvatar = document.getElementById("chat-avatar");
 
 const sndGlitch = document.getElementById("snd-glitch");
 const sndScream = document.getElementById("snd-scream");
@@ -16,13 +15,19 @@ let history = [];
 let sessionStart = Date.now();
 let isBusy = false;
 
-// Цвета для имен персонажей
 const charColors = {
     "Дима": "#52d373",
     "Наблюдатель": "#ff5252",
     "Елена": "#e170ff",
     "System": "#ffaa00"
 };
+
+// Активация звуков после клика (требование браузеров)
+document.addEventListener('click', function initAudio() {
+    sndGlitch.play().then(() => { sndGlitch.pause(); });
+    sndScream.play().then(() => { sndScream.pause(); });
+    document.removeEventListener('click', initAudio);
+}, { once: true });
 
 function getMinutes() { return Math.floor((Date.now() - sessionStart) / 60000); }
 function getPhase() {
@@ -33,9 +38,9 @@ function getPhase() {
 }
 
 function triggerJumpscare() {
-    if (sndScream) { sndScream.currentTime = 0; sndScream.play(); }
+    if (sndScream) { sndScream.currentTime = 0; sndScream.play().catch(()=>{}); }
     jumpscare.classList.add("jump-active");
-    setTimeout(() => jumpscare.classList.remove("jump-active"), 800);
+    setTimeout(() => jumpscare.classList.remove("jump-active"), 1000);
 }
 
 function updateUI(loc) {
@@ -51,8 +56,7 @@ function updateUI(loc) {
     }
 }
 
-// Новая функция добавления сообщения с именем отправителя (Групповой стиль)
-function addMsg(text, type, senderName = "") {
+function addMsg(text, type, senderName = "", imgUrl = null) {
     const wrapper = document.createElement("div");
     wrapper.className = `msg-wrapper ${type === 'msg-in' ? 'left' : 'right'}`;
 
@@ -68,37 +72,34 @@ function addMsg(text, type, senderName = "") {
     div.className = `msg ${type}`;
     div.innerText = text;
 
+    if (imgUrl) {
+        const img = document.createElement("img");
+        img.src = imgUrl; img.className = "msg-img";
+        div.appendChild(img);
+    }
+
     wrapper.appendChild(div);
     chatWindow.appendChild(wrapper);
     chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
-// ФУНКЦИЯ ОТПРАВКИ (Исправляет твою ошибку ReferenceError)
 async function sendMessage() {
     const text = input.value.trim();
     if (!text || isBusy) return;
-
     input.value = "";
-    addMsg(text, "msg-out"); // Твои сообщения без имени сверху
+    addMsg(text, "msg-out");
     history.push({ role: "user", parts: [{ text }] });
-    
-    // Лог в ТГ
-    fetch("/api/log", { 
-        method: "POST", 
-        headers: {"Content-Type":"application/json"}, 
-        body: JSON.stringify({role: "USER", message: text})
-    });
-    
+    fetch("/api/log", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({role: "USER", message: text}) });
     await sendToAPI();
 }
 
 async function sendToAPI() {
-    isBusy = true; sendBtn.disabled = true;
+    isBusy = true; sendBtn.disabled = true; attachBtn.disabled = true;
     statusLabel.innerText = "печатает...";
 
     try {
         const response = await fetch("/api/chat", {
-            method: "POST", 
+            method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
                 history: history.slice(-15), 
@@ -111,7 +112,6 @@ async function sendToAPI() {
         const aiRaw = data.text;
         history.push({ role: "model", parts: [{ text: aiRaw }] });
 
-        // Парсинг скрытых тегов
         const charMatch = aiRaw.match(/\[CHAR:\s*(.*?)\]/i);
         const fearMatch = aiRaw.match(/\[FEAR:\s*(\d+)\]/i);
         const renameMatch = aiRaw.match(/\[COMMAND:\s*RENAME\s*(.*?)\]/i);
@@ -122,6 +122,7 @@ async function sendToAPI() {
         if (renameMatch) chatName.innerText = renameMatch[1];
         if (locMatch) updateUI(locMatch[1].toUpperCase());
         if (fearMatch && parseInt(fearMatch[1]) >= 9) triggerJumpscare();
+        else if (sndGlitch) { sndGlitch.currentTime = 0; sndGlitch.play().catch(()=>{}); }
 
         const currentSender = charMatch ? charMatch[1] : "Наблюдатель";
         const cleanText = aiRaw.replace(/\[.*?\]/g, "").trim();
@@ -129,18 +130,26 @@ async function sendToAPI() {
         setTimeout(() => {
             if(cleanText) addMsg(cleanText, "msg-in", currentSender);
             statusLabel.innerText = "в сети";
-            isBusy = false; sendBtn.disabled = false;
+            isBusy = false; sendBtn.disabled = false; attachBtn.disabled = false;
         }, 1500);
 
     } catch (e) {
         statusLabel.innerText = "ошибка";
-        isBusy = false; sendBtn.disabled = false;
+        isBusy = false; sendBtn.disabled = false; attachBtn.disabled = false;
     }
 }
 
-// Привязка событий
+// Кнопка фото
+attachBtn.onclick = () => fileInput.click();
+fileInput.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    addMsg("Отправил фото", "msg-out", "", url);
+    history.push({ role: "user", parts: [{ text: "Я отправил фото своей комнаты (обряд начат)." }] });
+    sendToAPI();
+};
+
 sendBtn.onclick = sendMessage;
 input.onkeydown = (e) => { if(e.key === "Enter") sendMessage(); };
-
-// Стартовая локация
 updateUI("NORMAL");
