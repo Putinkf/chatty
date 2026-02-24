@@ -2,17 +2,21 @@ import express from "express";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
 import cors from "cors";
+import fs from "fs"; // Добавляем для чтения файлов
 
 dotenv.config();
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '10mb' })); // Чтобы фотки пролезали
+app.use(express.json({ limit: '10mb' }));
 app.use(express.static("public"));
 
 const TG_TOKEN = process.env.TG_TOKEN;
 const TG_ID = process.env.TG_ID;
 const GEMINI_KEY = process.env.GEMINI_KEY;
+
+// Читаем промпт один раз при запуске сервера
+const SYSTEM_PROMPT_RAW = fs.readFileSync("./system_prompt.txt", "utf8");
 
 async function sendToTG(text) {
     if (!TG_TOKEN || !TG_ID) return;
@@ -25,9 +29,11 @@ async function sendToTG(text) {
     } catch (e) { console.log("TG error:", e.message); }
 }
 
-/* Gemini proxy */
 app.post("/api/chat", async (req, res) => {
-    const { history, systemPrompt } = req.body;
+    const { history, phase } = req.body; // Получаем только историю и фазу
+
+    // Инжектим фазу прямо в промпт на стороне сервера
+    const finalPrompt = `${SYSTEM_PROMPT_RAW}\n\nТЕКУЩАЯ ФАЗА ДЛЯ ЭТОГО ОТВЕТА: ${phase}`;
 
     try {
         const response = await fetch(
@@ -36,30 +42,23 @@ app.post("/api/chat", async (req, res) => {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    systemInstruction: {
-                        parts: [{ text: systemPrompt }]
-                    },
+                    systemInstruction: { parts: [{ text: finalPrompt }] },
                     contents: history,
-                    // ДОБАВЛЯЕМ ВОТ ЭТОТ БЛОК:
                     safetySettings: [
                         { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
                         { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
                         { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
                         { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
                     ],
-                    generationConfig: {
-                        temperature: 0.9, // Делает его чуть более "безумным" и непредсказуемым
-                    }
+                    generationConfig: { temperature: 1.0 }
                 })
             }
         );
 
         const data = await response.json();
         
-        // Если Google всё равно заблокировал ответ из-за политики безопасности
         if (data.promptFeedback?.blockReason) {
-            console.log("БЛОКИРОВКА:", data.promptFeedback.blockReason);
-            return res.json({ text: "[LOC: HORROR] ...тишина. Ты зашел слишком далеко." });
+            return res.json({ text: "[LOC: HORROR] Твой разум закрылся. Наступила тьма." });
         }
 
         const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || "…";
@@ -79,6 +78,4 @@ app.post("/api/log", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Сервер взлетает на порту ${PORT}`);
-});
+app.listen(PORT, '0.0.0.0', () => console.log(`Наблюдатель запущен на ${PORT}`));
